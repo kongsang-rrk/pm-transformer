@@ -372,109 +372,241 @@ function pgDash(el){
 
 // ── PM Check Sheet ──
 function pgCheck(el){
-  CK={gen:{},prot:{},values:{},ir:{}};
+  CK={gen:{},prot:{},values:{},ir:{},remarks:{}};CK_EDIT_ID=null;
   el.innerHTML='';
-  // Header form
+
+  // ── Header card ──
   const hdr=document.createElement('div');hdr.className='card';
   hdr.innerHTML='<div class="st">📋 Transformer PM Check Sheet</div>'+
-    '<div class="g3" style="gap:12px;margin-bottom:12px">'+
+    '<div class="g3" style="gap:10px;margin-bottom:8px">'+
+    '<div class="fg"><label class="fl">Equipment Tag</label>'+
+    '<select class="fi" id="ck-tag" onchange="onTagSelect(this.value)">'+
+    '<option value="">-- เลือก Transformer --</option>'+
+    S.eq.map(e=>'<option value="'+e.tag+'">'+e.tag+' — '+e.desc+'</option>').join('')+
+    '</select></div>'+
     '<div class="fg"><label class="fl">Date</label><input class="fi" id="ck-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
     '<div class="fg"><label class="fl">WO Number</label><input class="fi" id="ck-wo" placeholder="WO-XXXXXXXX"></div>'+
-    '<div class="fg"><label class="fl">Equipment Tag</label><select class="fi" id="ck-tag" onchange="onTagSelect(this.value)"><option value="">-- เลือก Transformer --</option>'+S.eq.map(e=>'<option value="'+e.tag+'">'+e.tag+' — '+e.desc+'</option>').join('')+'</select></div>'+
-    '<div class="fg"><label class="fl">Inspector</label><input class="fi" id="ck-insp" placeholder="ชื่อผู้ตรวจ"></div>'+
-    '<div class="fg"><label class="fl">Reviewer</label><input class="fi" id="ck-rev" placeholder="ชื่อผู้ทบทวน"></div>'+
+    '<div class="fg"><label class="fl">Inspect Person</label><input class="fi" id="ck-insp" placeholder="ชื่อผู้ตรวจ"></div>'+
+    '<div class="fg"><label class="fl">Review Person</label><input class="fi" id="ck-rev" placeholder="ชื่อผู้ทบทวน"></div>'+
     '</div>';
   el.appendChild(hdr);
 
-  // Tabs
+  // ── Tabs ──
   const tabs=document.createElement('div');tabs.className='itab';
-  ['📋 General Inspection','🛡 Protection Simulation','📊 Summary'].forEach((t,i)=>{
+  ['📋 General Inspection','🛡 Self Protection Simulation','📊 Result'].forEach((t,i)=>{
     const tb=document.createElement('div');tb.className='it'+(i===0?' active':'');tb.textContent=t;
-    tb.onclick=()=>{document.querySelectorAll('.itab .it').forEach(x=>x.classList.remove('active'));tb.classList.add('active');[0,1,2].forEach(j=>E('ck-panel-'+j).style.display=j===i?'':'none');};
+    tb.onclick=()=>{
+      document.querySelectorAll('.itab .it').forEach(x=>x.classList.remove('active'));
+      tb.classList.add('active');
+      [0,1,2].forEach(j=>E('ck-panel-'+j).style.display=j===i?'':'none');
+    };
     tabs.appendChild(tb);
   });
   el.appendChild(tabs);
 
-  // Panel 0: General Inspection
+  // ────────────────────────────────────────────
+  // Panel 0: General Inspection — Excel table style
+  // ────────────────────────────────────────────
   const p0=document.createElement('div');p0.id='ck-panel-0';
+  const card0=document.createElement('div');card0.className='card';card0.style.padding='0';
+  const tbl0=document.createElement('table');
+  tbl0.style.cssText='width:100%;border-collapse:collapse;font-size:13px';
+  // Thead
+  tbl0.innerHTML=`<thead>
+    <tr style="background:var(--bg3)">
+      <th style="padding:8px 12px;border:1px solid var(--border2);text-align:left;width:45%;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em">GENERAL INSPECTION<br><span style="font-weight:400;color:var(--text3)">CHECK LIST</span></th>
+      <th style="padding:8px;border:1px solid var(--border2);text-align:center;width:80px;font-size:11px;font-weight:600">CHECK</th>
+      <th style="padding:8px;border:1px solid var(--border2);text-align:center;width:60px;font-size:11px;font-weight:600">N/A</th>
+      <th style="padding:8px 10px;border:1px solid var(--border2);text-align:left;font-size:11px;font-weight:600">REMARK</th>
+    </tr>
+  </thead>`;
+  const tb0=document.createElement('tbody');
+
   GEN_ITEMS.forEach(sec=>{
-    const sc=document.createElement('div');sc.className='card';
-    sc.innerHTML='<div class="sec-title">'+sec.sec+'</div>';
+    // Section header row
+    const secRow=document.createElement('tr');
+    secRow.innerHTML=`<td colspan="4" style="padding:6px 12px;border:1px solid var(--border2);background:rgba(210,153,34,.08);font-weight:700;font-size:11px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em">${sec.sec}</td>`;
+    tb0.appendChild(secRow);
+
     sec.items.forEach(item=>{
-      const row=document.createElement('div');row.className='chk-row';row.dataset.ck=item.k;
-      row.style.cssText='flex-wrap:wrap;gap:6px';
-      row.innerHTML='<div class="chk-label" style="min-width:200px">'+item.label+(item.sub?'<div class="chk-sub">'+item.sub+'</div>':'')+'</div>';
-      const btns=document.createElement('div');btns.className='chk-btns';
+      const tr=document.createElement('tr');tr.dataset.ck=item.k;
+      tr.style.transition='background .1s';
+      tr.onmouseover=()=>tr.style.background='rgba(255,255,255,.03)';
+      tr.onmouseout=()=>tr.style.background='';
+
+      // Label cell
+      const tdLabel=document.createElement('td');
+      tdLabel.style.cssText='padding:7px 12px;border:1px solid var(--border2);font-size:13px';
+      let labelHTML=item.label;
+      if(item.sub)labelHTML+='<div style="font-size:10px;color:var(--text3);margin-top:2px">'+item.sub+'</div>';
       if(item.hasValue){
-        const inp=document.createElement('input');inp.className='vi';inp.type='text';inp.placeholder='—';inp.style.width='120px';
-        if(CK.values[item.k])inp.value=CK.values[item.k];
-        inp.oninput=()=>CK.values[item.k]=inp.value;
-        btns.appendChild(inp);
-        const unit=document.createElement('span');unit.style.cssText='font-size:11px;color:var(--text3);margin-right:8px';unit.textContent=item.unit;
-        btns.appendChild(unit);
+        labelHTML+='<div style="margin-top:4px;display:flex;align-items:center;gap:6px">'+
+          '<input class="vi" type="text" placeholder="—" style="width:120px" oninput="CK.values[\''+item.k+'\']=this.value" id="val-'+item.k+'">'+
+          '<span style="font-size:11px;color:var(--text3)">'+item.unit+'</span></div>';
       }
-      ['ok','ng','n/a'].forEach(v=>{
-        const b=document.createElement('button');b.className='cb';b.textContent=v.toUpperCase();b.dataset.val=v;
-        b.onclick=()=>setCk(item.k,v);btns.appendChild(b);
-      });
-      row.appendChild(btns);
-      // Remark input per row
-      const rem=document.createElement('input');rem.className='fi';rem.placeholder='Remark...';
-      rem.style.cssText='flex:1;min-width:150px;font-size:12px;padding:4px 8px;height:28px';
-      if(CK.remarks&&CK.remarks[item.k])rem.value=CK.remarks[item.k];
-      rem.oninput=()=>{if(!CK.remarks)CK.remarks={};CK.remarks[item.k]=rem.value;};
-      row.appendChild(rem);
-      sc.appendChild(row);
-    });
-    p0.appendChild(sc);
-  });
-  el.appendChild(p0);
+      tdLabel.innerHTML=labelHTML;
 
-  // Panel 1: Protection Simulation
+      // CHECK cell (checkbox style button)
+      const tdChk=document.createElement('td');
+      tdChk.style.cssText='padding:7px;border:1px solid var(--border2);text-align:center';
+      const btnChk=document.createElement('button');
+      btnChk.className='ck-box';btnChk.dataset.key=item.k;btnChk.dataset.val='ok';
+      btnChk.style.cssText='width:22px;height:22px;border:2px solid var(--border2);border-radius:3px;background:var(--bg3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s';
+      btnChk.onclick=()=>toggleCkBox(item.k,'ok',btnChk,btnNA,tr);
+      tdChk.appendChild(btnChk);
+
+      // N/A cell
+      const tdNA=document.createElement('td');
+      tdNA.style.cssText='padding:7px;border:1px solid var(--border2);text-align:center';
+      const btnNA=document.createElement('button');
+      btnNA.className='ck-box';btnNA.dataset.key=item.k;btnNA.dataset.val='na';
+      btnNA.style.cssText='width:22px;height:22px;border:2px solid var(--border2);border-radius:3px;background:var(--bg3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s';
+      btnNA.onclick=()=>toggleCkBox(item.k,'na',btnNA,btnChk,tr);
+      tdNA.appendChild(btnNA);
+
+      // REMARK cell
+      const tdRem=document.createElement('td');
+      tdRem.style.cssText='padding:4px 8px;border:1px solid var(--border2)';
+      const remInp=document.createElement('input');remInp.type='text';
+      remInp.placeholder='Remark...';
+      remInp.id='rem-'+item.k;
+      remInp.style.cssText='width:100%;background:transparent;border:none;outline:none;font-size:12px;color:var(--text);font-family:var(--font)';
+      remInp.oninput=()=>CK.remarks[item.k]=remInp.value;
+      tdRem.appendChild(remInp);
+
+      tr.appendChild(tdLabel);tr.appendChild(tdChk);tr.appendChild(tdNA);tr.appendChild(tdRem);
+      tb0.appendChild(tr);
+
+      // Restore state if CK has data
+      if(CK.gen[item.k]==='ok'){btnChk.innerHTML='✓';btnChk.style.background='rgba(63,185,80,.2)';btnChk.style.borderColor='var(--green)';}
+      else if(CK.gen[item.k]==='na'){btnNA.innerHTML='✓';btnNA.style.background='rgba(139,148,158,.15)';btnNA.style.borderColor='var(--text3)';}
+      if(CK.remarks[item.k])remInp.value=CK.remarks[item.k]||'';
+    });
+  });
+
+  tbl0.appendChild(tb0);card0.appendChild(tbl0);
+
+  // Winding Temp — special 3-column layout at bottom
+  const wtDiv=document.createElement('div');wtDiv.style.cssText='padding:12px;border-top:1px solid var(--border2)';
+  wtDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">WINDING TEMPERATURE</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:center">'+
+    '<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">L1 — Actual/Max (°C)</div><input class="fi" id="val-wt_l1" placeholder="31/52" style="font-size:12px;padding:5px 8px" oninput="CK.values.wt_l1=this.value"></div>'+
+    '<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">L2 — Actual/Max (°C)</div><input class="fi" id="val-wt_l2" placeholder="31/52" style="font-size:12px;padding:5px 8px" oninput="CK.values.wt_l2=this.value"></div>'+
+    '<div><div style="font-size:11px;color:var(--text3);margin-bottom:4px">L3 — Actual/Max (°C)</div><input class="fi" id="val-wt_l3" placeholder="31/52" style="font-size:12px;padding:5px 8px" oninput="CK.values.wt_l3=this.value"></div>'+
+    '<div style="font-size:11px;color:var(--text3)">Alarm=100°C<br>Trip=110°C</div>'+
+    '</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:6px">Remark: <input type="text" placeholder="Actual/Max.(°C)" id="rem-wt" style="background:transparent;border:none;border-bottom:1px solid var(--border2);outline:none;color:var(--text);font-size:11px;width:200px" oninput="CK.remarks.wt=this.value"></div>';
+  card0.appendChild(wtDiv);
+  p0.appendChild(card0);el.appendChild(p0);
+
+  // ────────────────────────────────────────────
+  // Panel 1: Self Protection Simulation — Excel table
+  // ────────────────────────────────────────────
   const p1=document.createElement('div');p1.id='ck-panel-1';p1.style.display='none';
-  const p1c=document.createElement('div');p1c.className='card';
-  p1c.innerHTML='<div class="st">🛡 Self Protection Simulation Test</div>'+
-    '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">Test voltage: 250 Vdc | Signal Output Operating</div>';
-  const tbl=document.createElement('table');tbl.className='cht';
-  tbl.innerHTML='<thead><tr><th>Function / Reference</th><th style="text-align:center">Local Panel LED</th><th style="text-align:center">Lock Out Relay</th><th style="text-align:center">DCS</th><th>IR Test (GΩ)</th></tr></thead>';
-  const tb=document.createElement('tbody');
-  PROT_ITEMS.forEach(item=>{
-    const tr2=document.createElement('tr');
-    tr2.innerHTML='<td style="font-size:12px"><b>'+item.label+'</b><div style="color:var(--text3);font-size:10px">'+item.ref+'</div></td>';
-    ['led','lor','dcs'].forEach(col=>{
-      const td=document.createElement('td');td.style.textAlign='center';td.dataset.prot=item.k;td.dataset.col=col;
-      ['ok','ng'].forEach(v=>{
-        const b=document.createElement('button');b.className='cb btn-sm';b.textContent=v==='ok'?'✓':'✗';b.dataset.val=v;
-        b.onclick=()=>setCkProt(item.k,col,v);td.appendChild(b);
-      });
-      tr2.appendChild(td);
-    });
-    const tdIR=document.createElement('td');
-    const irInp=document.createElement('input');irInp.className='vi';irInp.type='text';irInp.placeholder='—';irInp.style.width='90px';
-    irInp.oninput=()=>CK.ir[item.irKey]=irInp.value;
-    tdIR.appendChild(irInp);const irUnit=document.createElement('span');irUnit.style.cssText='font-size:10px;color:var(--text3);margin-left:4px';irUnit.textContent='GΩ';tdIR.appendChild(irUnit);
-    tr2.appendChild(tdIR);tb.appendChild(tr2);
-  });
-  tbl.appendChild(tb);p1c.appendChild(tbl);p1.appendChild(p1c);el.appendChild(p1);
+  const card1=document.createElement('div');card1.className='card';card1.style.padding='0';
+  const tbl1=document.createElement('table');
+  tbl1.style.cssText='width:100%;border-collapse:collapse;font-size:12px';
+  tbl1.innerHTML=`<thead>
+    <tr style="background:var(--bg3)">
+      <th style="padding:8px 10px;border:1px solid var(--border2);text-align:left;font-size:11px;font-weight:700;text-transform:uppercase" rowspan="2">Function</th>
+      <th colspan="3" style="padding:6px;border:1px solid var(--border2);text-align:center;font-size:11px;font-weight:600">Signal Output Operating</th>
+      <th style="padding:6px 8px;border:1px solid var(--border2);text-align:center;font-size:11px;font-weight:600" rowspan="2">Contact resistance/<br>Insulation test [250Vdc]</th>
+    </tr>
+    <tr style="background:var(--bg3)">
+      <th style="padding:6px;border:1px solid var(--border2);text-align:center;font-size:11px;font-weight:500;width:90px">Local Panel LED</th>
+      <th style="padding:6px;border:1px solid var(--border2);text-align:center;font-size:11px;font-weight:500;width:90px">Lock Out Relay</th>
+      <th style="padding:6px;border:1px solid var(--border2);text-align:center;font-size:11px;font-weight:500;width:70px">DCS</th>
+    </tr>
+  </thead>`;
+  const tb1=document.createElement('tbody');
 
-  // Panel 2: Summary
+  PROT_ITEMS.forEach((item,idx)=>{
+    const tr=document.createElement('tr');
+    tr.style.transition='background .1s';
+    tr.onmouseover=()=>tr.style.background='rgba(255,255,255,.03)';
+    tr.onmouseout=()=>tr.style.background='';
+
+    // Function label
+    const tdFn=document.createElement('td');
+    tdFn.style.cssText='padding:6px 10px;border:1px solid var(--border2);font-size:12px';
+    tdFn.textContent=item.label+' / '+item.ref;
+    tr.appendChild(tdFn);
+
+    // 3 signal columns
+    ['led','lor','dcs'].forEach(col=>{
+      const td=document.createElement('td');
+      td.style.cssText='padding:6px;border:1px solid var(--border2);text-align:center';
+      const box=document.createElement('button');
+      box.style.cssText='width:22px;height:22px;border:2px solid var(--border2);border-radius:3px;background:var(--bg3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s';
+      box.dataset.key=item.k;box.dataset.col=col;
+      box.onclick=()=>{
+        if(!CK.prot[item.k])CK.prot[item.k]={};
+        const cur=CK.prot[item.k][col];
+        const next=cur==='ok'?'ng':cur==='ng'?null:'ok';
+        CK.prot[item.k][col]=next;
+        box.innerHTML=next==='ok'?'✓':next==='ng'?'':'' ;
+        box.style.background=next==='ok'?'rgba(63,185,80,.2)':next==='ng'?'rgba(248,81,73,.15)':'var(--bg3)';
+        box.style.borderColor=next==='ok'?'var(--green)':next==='ng'?'var(--red)':'var(--border2)';
+      };
+      // Restore state
+      if(CK.prot[item.k]&&CK.prot[item.k][col]==='ok'){box.innerHTML='✓';box.style.background='rgba(63,185,80,.2)';box.style.borderColor='var(--green)';}
+      td.appendChild(box);tr.appendChild(td);
+    });
+
+    // IR/Insulation value
+    const tdIR=document.createElement('td');
+    tdIR.style.cssText='padding:4px 8px;border:1px solid var(--border2);text-align:right';
+    const irInp=document.createElement('input');irInp.type='text';
+    irInp.id='ir-'+item.k;irInp.placeholder='— GΩ';
+    irInp.style.cssText='width:100%;background:transparent;border:none;outline:none;font-size:12px;color:var(--text);font-family:var(--mono);text-align:right';
+    irInp.oninput=()=>CK.ir[item.irKey]=irInp.value;
+    if(CK.ir[item.irKey])irInp.value=CK.ir[item.irKey]||'';
+    tdIR.appendChild(irInp);tr.appendChild(tdIR);
+    tb1.appendChild(tr);
+  });
+  tbl1.appendChild(tb1);card1.appendChild(tbl1);p1.appendChild(card1);el.appendChild(p1);
+
+  // ────────────────────────────────────────────
+  // Panel 2: Result
+  // ────────────────────────────────────────────
   const p2=document.createElement('div');p2.id='ck-panel-2';p2.style.display='none';
-  const p2c=document.createElement('div');p2c.className='card';
-  p2c.innerHTML='<div class="st">📊 Summary & Result</div>'+
-    '<div class="g2" style="gap:16px;margin-bottom:16px">'+
-    '<div><div class="fl" style="margin-bottom:8px">Overall Result</div>'+
-    '<div style="display:flex;gap:8px">'+
-    '<button class="cb" id="res-acc" data-val="Accepted" onclick="setResult(\'Accepted\')">✓ Accepted</button>'+
-    '<button class="cb" id="res-rej" data-val="Unaccepted" onclick="setResult(\'Unaccepted\')">✗ Unaccepted</button>'+
-    '</div></div>'+
-    '<div class="fg"><label class="fl">Remarks</label><textarea class="fi" id="ck-remark" rows="4" placeholder="หมายเหตุเพิ่มเติม..."></textarea></div>'+
+  const card2=document.createElement('div');card2.className='card';
+  card2.innerHTML='<div class="st">📊 Result</div>'+
+    '<table style="border-collapse:collapse;width:300px;margin-bottom:16px">'+
+    '<tr><td style="padding:6px 12px;border:1px solid var(--border2);font-size:13px">Result</td>'+
+    '<td style="padding:6px 16px;border:1px solid var(--border2);text-align:center">'+
+    '<button id="res-acc" class="ck-box" style="width:22px;height:22px;border:2px solid var(--border2);border-radius:3px;background:rgba(63,185,80,.2);border-color:var(--green);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px" onclick="setResult(\'Accepted\')">✓</button>'+
+    '</td><td style="padding:6px 12px;border:1px solid var(--border2);font-size:13px;color:var(--green)">Accepted</td></tr>'+
+    '<tr><td style="padding:6px 12px;border:1px solid var(--border2);font-size:13px">  </td>'+
+    '<td style="padding:6px 16px;border:1px solid var(--border2);text-align:center">'+
+    '<button id="res-rej" class="ck-box" style="width:22px;height:22px;border:2px solid var(--border2);border-radius:3px;background:var(--bg3);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;font-size:14px" onclick="setResult(\'Unaccepted\')"></button>'+
+    '</td><td style="padding:6px 12px;border:1px solid var(--border2);font-size:13px;color:var(--red)">Unaccepted</td></tr>'+
+    '</table>'+
+    '<div class="fg" style="margin-bottom:16px"><label class="fl">Remark</label><textarea class="fi" id="ck-remark" rows="3" placeholder="หมายเหตุเพิ่มเติม..."></textarea></div>'+
+    '<div class="g2" style="gap:12px;padding:12px;background:var(--bg3);border-radius:var(--r);border:1px solid var(--border);margin-bottom:16px">'+
+    '<div class="fg"><label class="fl">Inspect person</label><div id="sig-insp" style="border-bottom:1px solid var(--border2);min-height:30px;font-size:12px;padding:4px 0" onclick="E(\'ck-insp\').focus()"></div></div>'+
+    '<div class="fg"><label class="fl">Review person</label><div id="sig-rev" style="border-bottom:1px solid var(--border2);min-height:30px;font-size:12px;padding:4px 0"></div></div>'+
     '</div>';
   if(canEdit()){
-    const sv=document.createElement('button');sv.className='btn btn-s';sv.style.cssText='margin-top:8px;font-size:14px;padding:10px 24px';
-    sv.textContent='✓ บันทึก PM Record';sv.onclick=saveRecord;p2c.appendChild(sv);
+    const sv=document.createElement('button');sv.className='btn btn-s';sv.id='ck-save-btn';
+    sv.style.cssText='font-size:14px;padding:10px 28px';sv.textContent='✓ บันทึก PM Record';sv.onclick=saveRecord;
+    card2.appendChild(sv);
   }
-  p2.appendChild(p2c);el.appendChild(p2);
+  p2.appendChild(card2);el.appendChild(p2);
 }
+
+// Toggle checkbox: ok / na / unset
+function toggleCkBox(k,val,activeBtn,otherBtn,row){
+  const cur=CK.gen[k];
+  const next=cur===val?null:val;
+  CK.gen[k]=next;
+  // Reset both
+  [activeBtn,otherBtn].forEach(b=>{b.innerHTML='';b.style.background='var(--bg3)';b.style.borderColor='var(--border2)';});
+  if(next==='ok'){activeBtn.innerHTML='✓';activeBtn.style.background='rgba(63,185,80,.2)';activeBtn.style.borderColor='var(--green)';}
+  else if(next==='ng'||next==='na'){activeBtn.innerHTML='✓';activeBtn.style.background='rgba(139,148,158,.15)';activeBtn.style.borderColor='var(--text3)';}
+}
+
+
 
 let CK_RESULT='Accepted';
 let CK_EDIT_ID=null;
@@ -498,19 +630,53 @@ function populateCkFromRecord(r,editMode){
   CK.remarks={...r.genRemarks||{}};CK.prot={...r.prot||{}};CK.ir={...r.ir||{}};
   CK_RESULT=r.result||'Accepted';
   setTimeout(()=>{
-    Object.entries(CK.gen).forEach(([k,v])=>updateCkBtn(k,v));
-    Object.entries(CK.prot).forEach(([k,cols])=>{if(typeof cols==='object')Object.entries(cols).forEach(([col,v])=>updateProtBtn(k,col,v));});
+    // Restore new checkbox style
+    document.querySelectorAll('[data-ck]').forEach(row=>{
+      const k=row.dataset.ck;const v=CK.gen[k];
+      const boxes=row.querySelectorAll('.ck-box');
+      boxes.forEach(b=>{b.innerHTML='';b.style.background='var(--bg3)';b.style.borderColor='var(--border2)';});
+      if(v==='ok'&&boxes[0]){boxes[0].innerHTML='✓';boxes[0].style.background='rgba(63,185,80,.2)';boxes[0].style.borderColor='var(--green)';}
+      else if(v==='na'&&boxes[1]){boxes[1].innerHTML='✓';boxes[1].style.background='rgba(139,148,158,.15)';boxes[1].style.borderColor='var(--text3)';}
+    });
+    // Restore prot checkboxes
+    document.querySelectorAll('[data-key][data-col]').forEach(box=>{
+      const k=box.dataset.key,col=box.dataset.col;
+      const v=CK.prot[k]?.[col];
+      box.innerHTML=v==='ok'?'✓':'';
+      box.style.background=v==='ok'?'rgba(63,185,80,.2)':'var(--bg3)';
+      box.style.borderColor=v==='ok'?'var(--green)':'var(--border2)';
+    });
     setResult(CK_RESULT);
-    Object.entries(CK.values).forEach(([k,v])=>{const row=document.querySelector('[data-ck="'+k+'"]');if(row){const inp=row.querySelector('input.vi');if(inp)inp.value=v||'';}});
-    Object.entries(CK.remarks).forEach(([k,v])=>{const row=document.querySelector('[data-ck="'+k+'"]');if(row){const rem=row.querySelector('input.fi[placeholder="Remark..."]');if(rem)rem.value=v||'';}});
-    if(editMode){const svb=document.querySelector('.btn-s');if(svb)svb.textContent='✓ อัพเดต PM Record';}
+    Object.entries(CK.values).forEach(([k,v])=>{
+      const inp=E('val-'+k);if(inp)inp.value=v||'';
+    });
+    Object.entries(CK.remarks).forEach(([k,v])=>{
+      const inp=E('rem-'+k);if(inp)inp.value=v||'';
+    });
+    Object.entries(CK.ir).forEach(([k,v])=>{
+      // irKey mapping: ir_wtl1alarm → item.irKey
+      // just try all inputs
+      document.querySelectorAll('[id^="ir-"]').forEach(inp=>{
+        const key=inp.id.replace('ir-','');
+        const item=PROT_ITEMS.find(x=>x.k===key);
+        if(item&&CK.ir[item.irKey])inp.value=CK.ir[item.irKey];
+      });
+    });
+    if(editMode){const svb=E('ck-save-btn');if(svb)svb.textContent='✓ อัพเดต PM Record';}
     toast(editMode?'โหลดข้อมูลเพื่อแก้ไข ✓':'โหลดข้อมูลล่าสุดแล้ว');
   },100);
 }
 function setResult(v){
   CK_RESULT=v;
-  E('res-acc').className='cb'+(v==='Accepted'?' ok':'');
-  E('res-rej').className='cb'+(v==='Unaccepted'?' ng':'');
+  const acc=E('res-acc'),rej=E('res-rej');
+  if(!acc||!rej)return;
+  if(v==='Accepted'){
+    acc.innerHTML='✓';acc.style.background='rgba(63,185,80,.2)';acc.style.borderColor='var(--green)';
+    rej.innerHTML='';rej.style.background='var(--bg3)';rej.style.borderColor='var(--border2)';
+  }else{
+    rej.innerHTML='✓';rej.style.background='rgba(248,81,73,.12)';rej.style.borderColor='var(--red)';
+    acc.innerHTML='';acc.style.background='var(--bg3)';acc.style.borderColor='var(--border2)';
+  }
 }
 
 async function saveRecord(){
