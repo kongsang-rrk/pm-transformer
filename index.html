@@ -314,7 +314,7 @@ const PROT_ITEMS=[
 ];
 
 // ── State for check sheet ──
-let CK={gen:{},prot:{},values:{},ir:{}};
+let CK={gen:{},prot:{},values:{},ir:{},remarks:{}};
 
 function setCk(k,v){CK.gen[k]=v;updateCkBtn(k,v);}
 function setCkProt(k,col,v){if(!CK.prot[k])CK.prot[k]={};CK.prot[k][col]=v;updateProtBtn(k,col,v);}
@@ -380,7 +380,7 @@ function pgCheck(el){
     '<div class="g3" style="gap:12px;margin-bottom:12px">'+
     '<div class="fg"><label class="fl">Date</label><input class="fi" id="ck-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
     '<div class="fg"><label class="fl">WO Number</label><input class="fi" id="ck-wo" placeholder="WO-XXXXXXXX"></div>'+
-    '<div class="fg"><label class="fl">Equipment Tag</label><select class="fi" id="ck-tag"><option value="">-- เลือก Transformer --</option>'+S.eq.map(e=>'<option value="'+e.tag+'">'+e.tag+' — '+e.desc+'</option>').join('')+'</select></div>'+
+    '<div class="fg"><label class="fl">Equipment Tag</label><select class="fi" id="ck-tag" onchange="onTagSelect(this.value)"><option value="">-- เลือก Transformer --</option>'+S.eq.map(e=>'<option value="'+e.tag+'">'+e.tag+' — '+e.desc+'</option>').join('')+'</select></div>'+
     '<div class="fg"><label class="fl">Inspector</label><input class="fi" id="ck-insp" placeholder="ชื่อผู้ตรวจ"></div>'+
     '<div class="fg"><label class="fl">Reviewer</label><input class="fi" id="ck-rev" placeholder="ชื่อผู้ทบทวน"></div>'+
     '</div>';
@@ -402,10 +402,12 @@ function pgCheck(el){
     sc.innerHTML='<div class="sec-title">'+sec.sec+'</div>';
     sec.items.forEach(item=>{
       const row=document.createElement('div');row.className='chk-row';row.dataset.ck=item.k;
-      row.innerHTML='<div class="chk-label">'+item.label+(item.sub?'<div class="chk-sub">'+item.sub+'</div>':'')+'</div>';
+      row.style.cssText='flex-wrap:wrap;gap:6px';
+      row.innerHTML='<div class="chk-label" style="min-width:200px">'+item.label+(item.sub?'<div class="chk-sub">'+item.sub+'</div>':'')+'</div>';
       const btns=document.createElement('div');btns.className='chk-btns';
       if(item.hasValue){
-        const inp=document.createElement('input');inp.className='vi';inp.type='number';inp.step='0.1';inp.placeholder='—';inp.style.width='80px';
+        const inp=document.createElement('input');inp.className='vi';inp.type='text';inp.placeholder='—';inp.style.width='120px';
+        if(CK.values[item.k])inp.value=CK.values[item.k];
         inp.oninput=()=>CK.values[item.k]=inp.value;
         btns.appendChild(inp);
         const unit=document.createElement('span');unit.style.cssText='font-size:11px;color:var(--text3);margin-right:8px';unit.textContent=item.unit;
@@ -415,7 +417,14 @@ function pgCheck(el){
         const b=document.createElement('button');b.className='cb';b.textContent=v.toUpperCase();b.dataset.val=v;
         b.onclick=()=>setCk(item.k,v);btns.appendChild(b);
       });
-      row.appendChild(btns);sc.appendChild(row);
+      row.appendChild(btns);
+      // Remark input per row
+      const rem=document.createElement('input');rem.className='fi';rem.placeholder='Remark...';
+      rem.style.cssText='flex:1;min-width:150px;font-size:12px;padding:4px 8px;height:28px';
+      if(CK.remarks&&CK.remarks[item.k])rem.value=CK.remarks[item.k];
+      rem.oninput=()=>{if(!CK.remarks)CK.remarks={};CK.remarks[item.k]=rem.value;};
+      row.appendChild(rem);
+      sc.appendChild(row);
     });
     p0.appendChild(sc);
   });
@@ -468,6 +477,36 @@ function pgCheck(el){
 }
 
 let CK_RESULT='Accepted';
+let CK_EDIT_ID=null;
+function onTagSelect(tag){
+  if(!tag)return;
+  const recs=S.rec.filter(r=>r.tag===tag).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!recs.length)return;
+  const r=recs[0];
+  if(!confirm('พบ PM Record ล่าสุดของ '+tag+' ('+r.date+')\nต้องการโหลดข้อมูลมาแสดงไหม?'))return;
+  populateCkFromRecord(r,false);
+}
+function populateCkFromRecord(r,editMode){
+  CK_EDIT_ID=editMode?r.id:null;
+  if(E('ck-date'))E('ck-date').value=r.date||'';
+  if(E('ck-wo'))E('ck-wo').value=r.wo||'';
+  if(E('ck-insp'))E('ck-insp').value=r.insp||'';
+  if(E('ck-rev'))E('ck-rev').value=r.rev||'';
+  if(E('ck-remark'))E('ck-remark').value=r.remark||'';
+  if(E('ck-tag'))E('ck-tag').value=r.tag||'';
+  CK.gen={...r.gen||{}};CK.values={...r.genValues||{}};
+  CK.remarks={...r.genRemarks||{}};CK.prot={...r.prot||{}};CK.ir={...r.ir||{}};
+  CK_RESULT=r.result||'Accepted';
+  setTimeout(()=>{
+    Object.entries(CK.gen).forEach(([k,v])=>updateCkBtn(k,v));
+    Object.entries(CK.prot).forEach(([k,cols])=>{if(typeof cols==='object')Object.entries(cols).forEach(([col,v])=>updateProtBtn(k,col,v));});
+    setResult(CK_RESULT);
+    Object.entries(CK.values).forEach(([k,v])=>{const row=document.querySelector('[data-ck="'+k+'"]');if(row){const inp=row.querySelector('input.vi');if(inp)inp.value=v||'';}});
+    Object.entries(CK.remarks).forEach(([k,v])=>{const row=document.querySelector('[data-ck="'+k+'"]');if(row){const rem=row.querySelector('input.fi[placeholder="Remark..."]');if(rem)rem.value=v||'';}});
+    if(editMode){const svb=document.querySelector('.btn-s');if(svb)svb.textContent='✓ อัพเดต PM Record';}
+    toast(editMode?'โหลดข้อมูลเพื่อแก้ไข ✓':'โหลดข้อมูลล่าสุดแล้ว');
+  },100);
+}
 function setResult(v){
   CK_RESULT=v;
   E('res-acc').className='cb'+(v==='Accepted'?' ok':'');
@@ -481,15 +520,21 @@ async function saveRecord(){
   const rec={
     tag,date,wo:E('ck-wo').value,insp:E('ck-insp').value,rev:E('ck-rev').value,
     result:CK_RESULT,remark:E('ck-remark')?.value||'',
-    gen:{...CK.gen},genValues:{...CK.values},
+    gen:{...CK.gen},genValues:{...CK.values},genRemarks:{...CK.remarks},
     prot:{...CK.prot},ir:{...CK.ir},
     createdAt:firebase.firestore.FieldValue.serverTimestamp(),
     createdBy:S.usr?.email||''
   };
   try{
-    await db.collection('tr_records').add(rec);
-    S.rec.unshift({id:'new',...rec});
-    toast('บันทึก PM '+tag+' สำเร็จ ✓');
+    if(CK_EDIT_ID){
+      await db.collection('tr_records').doc(CK_EDIT_ID).update({...rec,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      const idx=S.rec.findIndex(x=>x.id===CK_EDIT_ID);
+      if(idx>=0)S.rec[idx]={id:CK_EDIT_ID,...rec};
+      CK_EDIT_ID=null;toast('อัพเดต PM '+tag+' สำเร็จ ✓');
+    }else{
+      const ref=await db.collection('tr_records').add(rec);
+      S.rec.unshift({id:ref.id,...rec});toast('บันทึก PM '+tag+' สำเร็จ ✓');
+    }
     go('history',E('nav-history'));
   }catch(e){toast('Error: '+e.message,'err');}
 }
@@ -513,7 +558,13 @@ function pgHist(el){
         '<td style="font-size:12px">'+(r.wo||'—')+'</td>'+
         '<td style="font-size:12px">'+(r.insp||'—')+'</td>'+
         '<td><span class="badge '+(r.result==='Accepted'?'b-ok':'b-ng')+'">'+r.result+'</span></td>'+
-        '<td><button class="btn btn-sm btn-p" onclick="showDetail(\''+r.id+'\')">View</button></td>';
+        '<td></td>';
+      const actTd=tr2.querySelector('td:last-child');actTd.style.cssText='display:flex;gap:6px';
+      const vb=document.createElement('button');vb.className='btn btn-sm btn-p';vb.textContent='View';
+      (function(rid){vb.onclick=function(){showDetail(rid);};})(r.id);actTd.appendChild(vb);
+      if(canEdit()){const eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='✎ Edit';
+      (function(rid){eb.onclick=function(){editRecord(rid);};})(r.id);actTd.appendChild(eb);}
+
       tb.appendChild(tr2);
     });
   }
@@ -550,6 +601,11 @@ function showDetail(id){
   E('dm-body').innerHTML=h;
   mo.classList.add('show');
   mo.onclick=(e)=>{if(e.target===mo)closeMo();};
+}
+function editRecord(id){
+  const r=S.rec.find(x=>x.id===id);if(!r)return;
+  go('checksheet',E('nav-checksheet'));
+  setTimeout(()=>populateCkFromRecord(r,true),200);
 }
 function closeMo(){const mo=E('detail-mo');if(mo)mo.classList.remove('show');}
 
@@ -769,16 +825,17 @@ async function importTrXlsx(file){
           reactive_power:g1('G48')?'ok':'na',
           wt_l1:'ok',wt_l2:'ok',wt_l3:'ok',
         };
-        // Values
+        // Values + Remarks
         const genValues={
-          oil_level:g1('K29'),
-          oil_temp:g1('K30'),
-          wt_l1:g1('C51'),
-          wt_l2:g1('E51'),
-          wt_l3:g1('G51'),
-          active_power:g1('G47'),
-          reactive_power:g1('G48'),
-          tap_chg:g1('G19'),
+          oil_level:g1('K29'),oil_temp:g1('K30'),
+          wt_l1:g1('C51'),wt_l2:g1('E51'),wt_l3:g1('G51'),
+          active_power:g1('G47'),reactive_power:g1('G48'),tap_chg:g1('G19'),
+        };
+        const genRemarks={
+          terminal:g1('K17'),tighten:g1('K18'),tap_chg:g1('K19'),
+          heater_tank:g1('K21'),silica:g1('K24'),oil_level:g1('K29'),
+          oil_temp:g1('K30'),heater_panel:g1('K44'),
+          wt_l1:g1('K51')+'/'+(g1('E51')||'')+'/'+(g1('G51')||''),
         };
         // Sheet 2 — Protection Simulation
         const prot={};
@@ -806,7 +863,7 @@ async function importTrXlsx(file){
         const result=g1('F59')==='True'?'Accepted':'Unaccepted';
         // Build record
         const rec={tag,date,insp,rev,result,remark:'',
-          gen,genValues,prot,ir:irValues,
+          gen,genValues,genRemarks,prot,ir:irValues,
           importedFrom:file.name,
           createdAt:firebase.firestore.FieldValue.serverTimestamp()
         };
