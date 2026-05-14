@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>const firebaseConfig={apiKey:"AIzaSyAIIFtJVieyqEpLmqqqn6cOqT_VOICuxmw",authDomain:"check-sheet-motor.firebaseapp.com",projectId:"check-sheet-motor",storageBucket:"check-sheet-motor.firebasestorage.app",messagingSenderId:"726291252984",appId:"1:726291252984:web:952912afbe890c4546dd0d"};</script>
 <style>
@@ -150,6 +151,7 @@ html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--t
     <div class="nav-i" id="nav-history" onclick="go('history',this)"><span class="nav-ic">☰</span> PM History</div>
     <div class="nav-s">Master Data</div>
     <div class="nav-i" id="nav-equipment" onclick="go('equipment',this)"><span class="nav-ic">⊞</span> Transformer</div>
+    <div class="nav-i" id="nav-import" onclick="go('import',this)"><span class="nav-ic">📥</span> Import Excel</div>
     <div class="nav-i" id="nav-settings" onclick="go('settings',this)"><span class="nav-ic">⚙</span> Settings</div>
     <div class="sidebar-user">
       <div class="u-av" id="uav">?</div>
@@ -228,9 +230,9 @@ async function loadAll(){
 function go(p,nav){
   document.querySelectorAll('.nav-i').forEach(x=>x.classList.remove('active'));
   if(nav)nav.classList.add('active');
-  E('ptitle').textContent={dashboard:'Dashboard',checksheet:'PM Check Sheet',history:'PM History',equipment:'Transformer List',settings:'Settings'}[p]||p;
+  E('ptitle').textContent={dashboard:'Dashboard',checksheet:'PM Check Sheet',history:'PM History',equipment:'Transformer List',settings:'Settings',import:'Import Excel'}[p]||p;
   const c=E('content');c.innerHTML='';
-  ({dashboard:pgDash,checksheet:pgCheck,history:pgHist,equipment:pgEq,settings:pgSet})[p]?.(c);
+  ({dashboard:pgDash,checksheet:pgCheck,history:pgHist,equipment:pgEq,settings:pgSet,import:pgImport})[p]?.(c);
 }
 
 // ── Toast ──
@@ -648,6 +650,173 @@ async function delEq(tag){
   if(!confirm('ลบ '+tag+'?'))return;
   try{await db.collection('tr_equipment').doc(tag).delete();S.eq=S.eq.filter(e=>e.tag!==tag);toast('ลบ '+tag+' แล้ว','warn');pgEq(E('content'));}
   catch(e){toast('Error: '+e.message,'err');}
+}
+
+
+// ══════════ IMPORT EXCEL ══════════
+function pgImport(el){
+  el.innerHTML='';
+  const card=document.createElement('div');card.className='card';
+  card.innerHTML='<div class="st">📥 Import Excel — Transformer Inspection Report</div>'+
+    '<div style="font-size:13px;color:var(--text3);margin-bottom:16px">รองรับ format: AST Transformer Report (มี 2 Sheet)</div>';
+  // Drop zone
+  const dz=document.createElement('div');
+  dz.style.cssText='border:2px dashed var(--border2);border-radius:var(--r);padding:40px;text-align:center;cursor:pointer;transition:all .2s;margin-bottom:16px';
+  dz.innerHTML='<div style="font-size:36px;margin-bottom:8px">📂</div>'+
+    '<div style="font-size:14px;font-weight:500;margin-bottom:4px">ลากไฟล์วางที่นี่ หรือคลิกเลือก</div>'+
+    '<div style="font-size:12px;color:var(--text3)">.xlsx | เลือกหลายไฟล์ได้</div>';
+  const fi=document.createElement('input');fi.type='file';fi.accept='.xlsx';fi.multiple=true;fi.style.display='none';
+  dz.onclick=()=>fi.click();
+  dz.ondragover=(e)=>{e.preventDefault();dz.style.borderColor='var(--amber)';};
+  dz.ondragleave=()=>dz.style.borderColor='';
+  dz.ondrop=(e)=>{e.preventDefault();dz.style.borderColor='';processTrFiles(e.dataTransfer.files,res);};
+  fi.onchange=()=>processTrFiles(fi.files,res);
+  card.appendChild(dz);card.appendChild(fi);
+  const res=document.createElement('div');res.id='import-result';
+  card.appendChild(res);
+  el.appendChild(card);
+}
+
+async function processTrFiles(files,resultBox){
+  if(!files.length)return;
+  resultBox.innerHTML='<div style="color:var(--text3);font-size:13px;padding:8px">⏳ กำลัง import '+files.length+' ไฟล์...</div>';
+  let ok=0,skip=0,err=0;const log=[];
+  for(const file of files){
+    try{
+      const result=await importTrXlsx(file);
+      if(result.status==='ok'){ok++;log.push({file:file.name,status:'ok',msg:result.tag+' — '+result.date});}
+      else if(result.status==='skip'){skip++;log.push({file:file.name,status:'skip',msg:result.msg});}
+    }catch(e){err++;log.push({file:file.name,status:'err',msg:e.message});}
+  }
+  await loadAll();
+  resultBox.innerHTML='<div style="font-size:13px;font-weight:600;margin-bottom:12px">ผลการ Import: ✅ '+ok+' | ⏭ '+skip+' | ❌ '+err+'</div>';
+  const tbl=document.createElement('table');tbl.className='cht';
+  tbl.innerHTML='<thead><tr><th>ไฟล์</th><th>สถานะ</th><th>รายละเอียด</th></tr></thead>';
+  const tb=document.createElement('tbody');
+  log.forEach(l=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td style="font-size:12px">'+l.file+'</td>'+
+      '<td><span class="badge '+(l.status==='ok'?'b-ok':l.status==='skip'?'b-al':'b-ng')+'">'+(l.status==='ok'?'✅ OK':l.status==='skip'?'⏭ Skip':'❌ Error')+'</span></td>'+
+      '<td style="font-size:12px;color:var(--text3)">'+l.msg+'</td>';
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb);resultBox.appendChild(tbl);
+}
+
+async function importTrXlsx(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=async(e)=>{
+      try{
+        const data=new Uint8Array(e.target.result);
+        const wb=XLSX.read(data,{type:'array',cellDates:false});
+        // Find Sheet 1 (General Inspection)
+        const ws1=wb.Sheets[wb.SheetNames[0]];
+        const ws2=wb.Sheets.length>1?wb.Sheets[wb.SheetNames[1]]:null;
+        const g1=(addr)=>{const c=ws1[addr];return c?String(c.v||'').trim():'';};
+        const g2=(addr)=>{if(!ws2)return'';const c=ws2[addr];return c?String(c.v||'').trim():'';};
+        const boolVal=(v)=>v==='True'?'ok':v==='False'?'ng':'na';
+        // Equipment info
+        const tag=g1('E5');if(!tag)return resolve({status:'skip',msg:'ไม่พบ Equipment code (E5)'});
+        // Date
+        const dv=ws1['E66']?.v;
+        let date='';
+        if(typeof dv==='number'){
+          const d=new Date(Math.round((dv-25569)*86400*1000));
+          date=d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+        }else if(dv instanceof Date){
+          date=dv.getUTCFullYear()+'-'+String(dv.getUTCMonth()+1).padStart(2,'0')+'-'+String(dv.getUTCDate()).padStart(2,'0');
+        }else if(typeof dv==='string'){
+          const m=dv.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)date=m[0];
+        }
+        if(!date)return resolve({status:'skip',msg:'ไม่พบวันที่ (E66)'});
+        // Check duplicate
+        if(S.rec.find(r=>r.tag===tag&&r.date===date))
+          return resolve({status:'skip',msg:'ซ้ำ: '+tag+' '+date});
+        // Auto-create equipment if not exists
+        if(!S.eq.find(e=>e.tag===tag)){
+          const eqData={
+            tag,unit:g1('J5'),desc:g1('E6'),
+            model:g1('E9'),rated:g1('E10'),volt:g1('E11'),
+            ot:'83 / 88',wt:'100 / 110',loc:''
+          };
+          await db.collection('tr_equipment').doc(tag).set(eqData,{merge:true});
+        }
+        // Sheet 1 — General Inspection
+        const gen={
+          oil_leak:boolVal(g1('G16')),
+          terminal:boolVal(g1('G17')),
+          tighten:boolVal(g1('G18')),
+          tap_chg:g1('G19')?'ok':'na',
+          sound:boolVal(g1('G20')),
+          heater_tank:boolVal(g1('G21')),
+          silica:boolVal(g1('G24')),
+          oil_seal:boolVal(g1('G26')),
+          breathing:boolVal(g1('G27')),
+          oil_level:boolVal(g1('G29')),
+          oil_temp:boolVal(g1('G30')),
+          valve_open:boolVal(g1('G33')),
+          buchholz_leak:boolVal(g1('G34')),
+          no_gas:boolVal(g1('G35')),
+          pr_blowout:boolVal(g1('G37')),
+          pr_leak:boolVal(g1('G38')),
+          rpr_leak:boolVal(g1('G40')),
+          led_ok:boolVal(g1('G42')),
+          no_alarm:boolVal(g1('G43')),
+          heater_panel:boolVal(g1('G44')),
+          relay_alarm:boolVal(g1('G46')),
+          active_power:g1('G47')?'ok':'na',
+          reactive_power:g1('G48')?'ok':'na',
+          wt_l1:'ok',wt_l2:'ok',wt_l3:'ok',
+        };
+        // Values
+        const genValues={
+          oil_level:g1('K29'),
+          oil_temp:g1('K30'),
+          wt_l1:g1('C51'),
+          wt_l2:g1('E51'),
+          wt_l3:g1('G51'),
+          active_power:g1('G47'),
+          reactive_power:g1('G48'),
+          tap_chg:g1('G19'),
+        };
+        // Sheet 2 — Protection Simulation
+        const prot={};
+        const protRows={
+          wt_l1_alarm:{f:16},wt_l2_alarm:{f:17},wt_l3_alarm:{f:18},
+          wt_l1_trip:{f:19},wt_l2_trip:{f:20},wt_l3_trip:{f:21},
+          oil_lv_min:{f:22},oil_lv_max:{f:23},oil_tmp_alm:{f:24},
+          oil_tmp_trp:{f:25},pr1_trip:{f:26},pr1_nu:{f:27},
+          buch1_trip:{f:28},buch2_nu:{f:29},buch_alm:{f:30},
+          rpr_trip:{f:31},rubber_alm:{f:32}
+        };
+        const irValues={};
+        Object.entries(protRows).forEach(([key,{f}])=>{
+          prot[key]={
+            led:boolVal(g2('F'+f)),
+            lor:boolVal(g2('H'+f)),
+            dcs:boolVal(g2('J'+f))
+          };
+          const irKey='ir_'+key.replace(/_/g,'');
+          irValues[irKey]=g2('K'+f);
+        });
+        // Inspector / Reviewer / Result
+        const insp=g1('C64').replace('Inspect person :','').trim()||'';
+        const rev=g1('H64').replace('Review person:','').trim()||'';
+        const result=g1('F59')==='True'?'Accepted':'Unaccepted';
+        // Build record
+        const rec={tag,date,insp,rev,result,remark:'',
+          gen,genValues,prot,ir:irValues,
+          importedFrom:file.name,
+          createdAt:firebase.firestore.FieldValue.serverTimestamp()
+        };
+        await db.collection('tr_records').add(rec);
+        resolve({status:'ok',tag,date});
+      }catch(ex){reject(ex);}
+    };
+    reader.onerror=()=>reject(new Error('อ่านไฟล์ไม่ได้'));
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 // ── Settings ──
