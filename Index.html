@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PM Transformer — GPSC Glow Energy Phase 2</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>const firebaseConfig={apiKey:"AIzaSyAIIFtJVieyqEpLmqqqn6cOqT_VOICuxmw",authDomain:"check-sheet-motor.firebaseapp.com",projectId:"check-sheet-motor",storageBucket:"check-sheet-motor.firebasestorage.app",messagingSenderId:"726291252984",appId:"1:726291252984:web:952912afbe890c4546dd0d"};</script>
+<style>
+:root{--bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--bg4:#21262d;--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);--text:#e6edf3;--text2:#c9d1d9;--text3:#8b949e;--accent:#58a6ff;--accent2:#1f6feb;--green:#3fb950;--amber:#d29922;--red:#f85149;--purple:#bc8cff;--font:'IBM Plex Sans Thai',sans-serif;--mono:'IBM Plex Mono',monospace;--r:8px;--rl:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+.app{display:flex;height:100vh;overflow:hidden}
+/* Sidebar */
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-logo{padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.logo-icon{width:36px;height:36px;background:var(--amber);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;color:#000;font-size:13px;flex-shrink:0}
+.logo-text{overflow:hidden}.logo-t1{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.logo-t2{font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nav-s{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:12px 16px 4px}
+.nav-i{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;border-radius:6px;margin:0 8px;font-size:13px;color:var(--text2);transition:all .15s}
+.nav-i:hover{background:var(--bg3);color:var(--text)}
+.nav-i.active{background:rgba(88,166,255,.12);color:var(--accent);font-weight:500}
+.nav-ic{width:18px;text-align:center;font-size:14px;flex-shrink:0}
+.sidebar-user{padding:12px 16px;border-top:1px solid var(--border);margin-top:auto;display:flex;align-items:center;gap:8px}
+.u-av{width:30px;height:30px;border-radius:50%;background:var(--amber);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#000;flex-shrink:0}
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+.breadcrumb{flex:1;font-size:13px;color:var(--text3)}.breadcrumb b{color:var(--text)}
+.content{flex:1;overflow-y:auto;padding:20px}
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:18px;margin-bottom:14px}
+.card-t,.st{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+/* Form */
+.fg{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.fl{font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
+.fi{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:8px 10px;color:var(--text);font-family:var(--font);font-size:13px;width:100%;transition:border-color .15s;outline:none}
+.fi:focus{border-color:var(--accent)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer;transition:all .15s;font-weight:500}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn-p{background:var(--accent2);border-color:var(--accent2);color:#fff}.btn-p:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-s{background:rgba(63,185,80,.15);border-color:rgba(63,185,80,.3);color:var(--green)}.btn-s:hover{background:rgba(63,185,80,.25)}
+.btn-d{background:rgba(248,81,73,.12);border-color:rgba(248,81,73,.25);color:var(--red)}.btn-d:hover{background:rgba(248,81,73,.22)}
+.btn-sm{padding:4px 10px;font-size:12px}
+/* Inspection checkbox buttons */
+.chk-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.chk-label{flex:1;font-size:13px}
+.chk-sub{font-size:11px;color:var(--text3)}
+.chk-btns{display:flex;gap:6px;flex-shrink:0}
+.cb{padding:4px 12px;border-radius:14px;border:1px solid var(--border2);background:var(--bg3);color:var(--text3);font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--font)}
+.cb:hover{border-color:var(--accent);color:var(--accent)}
+.cb.ok{background:rgba(63,185,80,.15);border-color:rgba(63,185,80,.3);color:var(--green);font-weight:600}
+.cb.ng{background:rgba(248,81,73,.12);border-color:rgba(248,81,73,.25);color:var(--red);font-weight:600}
+.cb.na{background:rgba(139,148,158,.1);border-color:var(--border);color:var(--text3);font-weight:600}
+.sec-title{font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;padding:10px 0 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
+/* Input fields */
+.vi{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-family:var(--mono);font-size:12px;width:90px;text-align:center;outline:none}
+.vi:focus{border-color:var(--accent)}
+/* Table */
+.cht{width:100%;border-collapse:collapse;font-size:13px}
+.cht th{padding:8px 10px;background:var(--bg3);font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);text-align:left}
+.cht td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.cht tr:hover td{background:rgba(255,255,255,.02)}
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;border:1px solid}
+.b-ok{background:rgba(63,185,80,.1);color:var(--green);border-color:rgba(63,185,80,.25)}
+.b-ng{background:rgba(248,81,73,.1);color:var(--red);border-color:rgba(248,81,73,.25)}
+.b-na{background:rgba(139,148,158,.1);color:var(--text3);border-color:var(--border)}
+.b-al{background:rgba(210,153,34,.12);color:var(--amber);border-color:rgba(210,153,34,.25)}
+/* Modal */
+.mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;padding:20px}
+.mo.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:12px;width:700px;max-width:100%;max-height:90vh;display:flex;flex-direction:column}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.mb{padding:20px;overflow-y:auto;flex:1}
+.mc-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;line-height:1}
+/* Login */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px;width:360px}
+.login-logo{width:52px;height:52px;background:var(--amber);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;color:#000;margin:0 auto 16px}
+/* Toast */
+.toast-c{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{padding:10px 16px;border-radius:8px;font-size:13px;font-weight:500;background:var(--bg2);border:1px solid var(--border);color:var(--text);animation:fadeIn .2s ease;pointer-events:auto}
+.toast.ok{border-color:rgba(63,185,80,.4);color:var(--green)}
+.toast.err{border-color:rgba(248,81,73,.4);color:var(--red)}
+.toast.warn{border-color:rgba(210,153,34,.4);color:var(--amber)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+/* Tabs */
+.itab{display:flex;gap:4px;margin-bottom:16px;background:var(--bg3);border-radius:8px;padding:4px}
+.it{padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--text3);transition:all .15s}
+.it:hover{color:var(--text)}
+.it.active{background:var(--bg2);color:var(--text);font-weight:500;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+/* Print */
+@media print{
+  .sidebar,.topbar,.toast-c,.btn,.chk-btns .cb:not(.ok):not(.ng):not(.na){display:none!important}
+  .content{padding:0!important;overflow:visible!important}
+  .app{display:block!important;height:auto!important}
+  .main{overflow:visible!important}
+  .card{break-inside:avoid;border:1px solid #ccc!important;background:#fff!important}
+  body{background:#fff!important;color:#000!important}
+  *{color:#000!important}
+}
+/* Role */
+.role-chip{display:inline-flex;align-items:center;padding:2px 8px;border-radius:12px;font-size:9px;font-weight:600}
+.role-admin{background:rgba(248,81,73,.15);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+.role-editor{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.25)}
+.role-viewer{background:rgba(139,148,158,.12);color:var(--text3);border:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="toast-c" id="toasts"></div>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">⚡</div>
+    <h2 style="text-align:center;margin-bottom:4px;font-size:18px">PM Transformer</h2>
+    <p style="text-align:center;color:var(--text3);font-size:13px;margin-bottom:24px">GPSC — Glow Energy Phase 2</p>
+    <div class="fg"><label class="fl">Email</label><input class="fi" id="lg-em" type="email" placeholder="user@email.com"></div>
+    <div class="fg"><label class="fl">Password</label><input class="fi" id="lg-pw" type="password" placeholder="••••••••"></div>
+    <button class="btn btn-p" style="width:100%;margin-top:12px;justify-content:center" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div id="lg-err" style="color:var(--red);font-size:12px;margin-top:8px;text-align:center"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div class="app" id="main-app" style="display:none">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon" id="sli-el">TR</div>
+      <div class="logo-text">
+        <div class="logo-t1" id="logo-t1">PM Transformer</div>
+        <div class="logo-t2" id="logo-t2">Glow Energy Phase 2</div>
+      </div>
+    </div>
+    <div class="nav-i" onclick="window.location.href='https://kongsang-rrk.github.io'" style="margin:8px;border:1px solid var(--border2)"><span class="nav-ic">🏠</span> หน้าหลัก</div>
+    <div class="nav-s">Overview</div>
+    <div class="nav-i active" id="nav-dashboard" onclick="go('dashboard',this)"><span class="nav-ic">◈</span> Dashboard</div>
+    <div class="nav-s">PM Operations</div>
+    <div class="nav-i" id="nav-checksheet" onclick="go('checksheet',this)"><span class="nav-ic">✎</span> PM Check Sheet</div>
+    <div class="nav-i" id="nav-history" onclick="go('history',this)"><span class="nav-ic">☰</span> PM History</div>
+    <div class="nav-s">Master Data</div>
+    <div class="nav-i" id="nav-equipment" onclick="go('equipment',this)"><span class="nav-ic">⊞</span> Transformer</div>
+    <div class="nav-i" id="nav-settings" onclick="go('settings',this)"><span class="nav-ic">⚙</span> Settings</div>
+    <div class="sidebar-user">
+      <div class="u-av" id="uav">?</div>
+      <div style="flex:1;overflow:hidden">
+        <div style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="uname">—</div>
+        <div style="font-size:10px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="uemail">—</div>
+      </div>
+      <span id="role-badge" class="role-chip">—</span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb"><b id="ptitle">Dashboard</b></div>
+      <div id="tclock" style="font-size:12px;color:var(--text3);font-family:var(--mono)"></div>
+      <button class="btn btn-p btn-sm" id="btn-newpm" onclick="go('checksheet',E('nav-checksheet'))">+ New PM</button>
+      <button class="btn btn-d btn-sm" onclick="doLogout()">Logout</button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.firestore();
+const E=id=>document.getElementById(id);
+let S={eq:[],rec:[],set:{plant:'GEN2',co:'GPSC'},role:'viewer',usr:null};
+
+// ── Auth ──
+async function doLogin(){const e=E('lg-em').value,p=E('lg-pw').value;try{await auth.signInWithEmailAndPassword(e,p);}catch(err){E('lg-err').textContent=err.message;}}
+async function doLogout(){await auth.signOut();}
+auth.onAuthStateChanged(async u=>{
+  if(u){
+    S.usr=u;
+    E('login-screen').style.display='none';
+    E('main-app').style.display='flex';
+    E('uav').textContent=u.email.slice(0,2).toUpperCase();
+    E('uname').textContent=u.displayName||u.email.split('@')[0];
+    E('uemail').textContent=u.email;
+    await loadRole(u);
+    await loadAll();
+    go('dashboard',E('nav-dashboard'));
+  }else{E('login-screen').style.display='flex';E('main-app').style.display='none';}
+});
+
+async function loadRole(u){
+  try{
+    const doc=await db.collection('users').doc(u.email).get();
+    if(doc.exists){S.role=doc.data().role||'viewer';}
+    else{
+      const all=await db.collection('users').limit(1).get();
+      S.role=all.empty?'admin':'viewer';
+      await db.collection('users').doc(u.email).set({email:u.email,role:S.role,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }
+    const rb=E('role-badge');
+    if(rb){rb.textContent=S.role==='admin'?'Admin':S.role==='editor'?'Editor':'Viewer';rb.className='role-chip '+(S.role==='admin'?'role-admin':S.role==='editor'?'role-editor':'role-viewer');}
+    if(E('btn-newpm'))E('btn-newpm').style.display=canEdit()?'':'none';
+  }catch(e){S.role='viewer';}
+}
+const isAdmin=()=>S.role==='admin';
+const canEdit=()=>S.role==='admin'||S.role==='editor';
+
+async function loadAll(){
+  try{
+    const [es,rs,ss]=await Promise.all([
+      db.collection('tr_equipment').get(),
+      db.collection('tr_records').orderBy('date','desc').get(),
+      db.collection('settings').doc('global').get()
+    ]);
+    S.eq=es.docs.map(d=>({id:d.id,...d.data()}));
+    S.rec=rs.docs.map(d=>({id:d.id,...d.data()}));
+    if(ss.exists)S.set={...S.set,...ss.data()};
+  }catch(e){toast('Load error: '+e.message,'err');}
+}
+
+// ── Navigation ──
+function go(p,nav){
+  document.querySelectorAll('.nav-i').forEach(x=>x.classList.remove('active'));
+  if(nav)nav.classList.add('active');
+  E('ptitle').textContent={dashboard:'Dashboard',checksheet:'PM Check Sheet',history:'PM History',equipment:'Transformer List',settings:'Settings'}[p]||p;
+  const c=E('content');c.innerHTML='';
+  ({dashboard:pgDash,checksheet:pgCheck,history:pgHist,equipment:pgEq,settings:pgSet})[p]?.(c);
+}
+
+// ── Toast ──
+function toast(msg,type='ok'){
+  const t=document.createElement('div');t.className='toast '+(type==='err'?'err':type==='warn'?'warn':'ok');
+  t.textContent=msg;E('toasts').appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
+// ── Clock ──
+function uClock(){if(E('tclock')){const n=new Date();E('tclock').textContent=n.toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'numeric'})+' '+n.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});}}
+setInterval(uClock,1000);uClock();
+
+// ── Inspection check items ──
+const GEN_ITEMS=[
+  {sec:'MAIN TANK',items:[
+    {k:'oil_leak',label:'No Oil Leakage'},
+    {k:'terminal',label:'Connector Terminal and bushing are good condition',sub:'[Shut down condition]'},
+    {k:'tighten',label:'Tighten Terminal and mark check',sub:'[Shut down condition]'},
+    {k:'tap_chg',label:'OFF-Load Tap change Position'},
+    {k:'sound',label:'No abnormal Sound / Vibration'},
+    {k:'heater_tank',label:'Heater operating normally [150W]'},
+  ]},
+  {sec:'BREATHER',items:[
+    {k:'silica',label:'Color of silica gel *',sub:'<80% Orange'},
+    {k:'oil_seal',label:'Normal oil sealing level'},
+    {k:'breathing',label:'Breathing action normally'},
+  ]},
+  {sec:'CONSERVATOR',items:[
+    {k:'oil_level',label:'Oil Level',hasValue:true,unit:''},
+    {k:'oil_temp',label:'Oil Temp. (Actual/Max.)',hasValue:true,unit:'°C',sub:'Alarm=83°C, Trip=88°C'},
+  ]},
+  {sec:'BUCHHOLZ RELAY',items:[
+    {k:'valve_open',label:'Valve open position'},
+    {k:'buchholz_leak',label:'No Oil Leaks'},
+    {k:'no_gas',label:'No Gas detect'},
+  ]},
+  {sec:'PRESSURE RELIEF',items:[
+    {k:'pr_blowout',label:'Marks of blowout in service'},
+    {k:'pr_leak',label:'No Oil Leaks'},
+  ]},
+  {sec:'RAPID PRESSURE RELIEF',items:[
+    {k:'rpr_leak',label:'No Oil Leaks'},
+  ]},
+  {sec:'LOCAL PANEL',items:[
+    {k:'led_ok',label:'LED Status working normally'},
+    {k:'no_alarm',label:'No Alarm active'},
+    {k:'heater_panel',label:'Heater operating normally [150W]'},
+  ]},
+  {sec:'RELAY PROTECTION & MEASUREMENT',items:[
+    {k:'relay_alarm',label:'No Alarm active'},
+    {k:'active_power',label:'Active Power',hasValue:true,unit:'kW'},
+    {k:'reactive_power',label:'Reactive Power',hasValue:true,unit:'kVAR'},
+  ]},
+  {sec:'WINDING TEMPERATURE (°C)',items:[
+    {k:'wt_l1',label:'L1 — Actual / Max.',hasValue:true,unit:'°C',sub:'Alarm=100°C, Trip=110°C'},
+    {k:'wt_l2',label:'L2 — Actual / Max.',hasValue:true,unit:'°C'},
+    {k:'wt_l3',label:'L3 — Actual / Max.',hasValue:true,unit:'°C'},
+  ]},
+];
+
+const PROT_ITEMS=[
+  {k:'wt_l1_alarm',label:'Winding Temp. L1 [Alarm]',ref:'X2:10-27',irKey:'ir_wt_l1a'},
+  {k:'wt_l2_alarm',label:'Winding Temp. L2 [Alarm]',ref:'X2:11-28',irKey:'ir_wt_l2a'},
+  {k:'wt_l3_alarm',label:'Winding Temp. L3 [Alarm]',ref:'X2:12-29',irKey:'ir_wt_l3a'},
+  {k:'wt_l1_trip',label:'Winding Temp. L1 [Trip]',ref:'X2:1-18',irKey:'ir_wt_l1t'},
+  {k:'wt_l2_trip',label:'Winding Temp. L2 [Trip]',ref:'X2:2-19',irKey:'ir_wt_l2t'},
+  {k:'wt_l3_trip',label:'Winding Temp. L3 [Trip]',ref:'X2:3-20',irKey:'ir_wt_l3t'},
+  {k:'oil_lv_min',label:'Oil Level Min [Alarm]',ref:'X2:15-32',irKey:'ir_oil_min'},
+  {k:'oil_lv_max',label:'Oil Level Max [Alarm]',ref:'X2:16-33',irKey:'ir_oil_max'},
+  {k:'oil_tmp_alm',label:'Oil Temperature [Alarm]',ref:'X2:13-30',irKey:'ir_oil_ta'},
+  {k:'oil_tmp_trp',label:'Oil Temperature [Trip]',ref:'X2:4-21',irKey:'ir_oil_tt'},
+  {k:'pr1_trip',label:'Pressure Relief 1 [Trip]',ref:'X2:5-22',irKey:'ir_pr1t'},
+  {k:'pr1_nu',label:'Pressure Relief 1 [Not Use]',ref:'X2:6-23',irKey:'ir_pr1nu'},
+  {k:'buch1_trip',label:'Buchholz Relay 1 [Trip]',ref:'X2:7-24',irKey:'ir_buch1t'},
+  {k:'buch2_nu',label:'Buchholz Relay 2 [Not use]',ref:'X2:8-25',irKey:'ir_buch2nu'},
+  {k:'buch_alm',label:'Buchholz Relay [Alarm]',ref:'X2:14-31',irKey:'ir_bucha'},
+  {k:'rpr_trip',label:'Rapid Pressure Rise Relay [Trip]',ref:'X2:9-26',irKey:'ir_rprt'},
+  {k:'rubber_alm',label:'Rubber Bag Air Detector [Alarm]',ref:'X2:17-34',irKey:'ir_rubba'},
+];
+
+// ── State for check sheet ──
+let CK={gen:{},prot:{},values:{},ir:{}};
+
+function setCk(k,v){CK.gen[k]=v;updateCkBtn(k,v);}
+function setCkProt(k,col,v){if(!CK.prot[k])CK.prot[k]={};CK.prot[k][col]=v;updateProtBtn(k,col,v);}
+function setVal(k,v){CK.values[k]=v;}
+
+function updateCkBtn(k,v){
+  const row=document.querySelector(`[data-ck="${k}"]`);
+  if(!row)return;
+  row.querySelectorAll('.cb').forEach(b=>{b.className='cb';});
+  const active=row.querySelector(`[data-val="${v}"]`);
+  if(active)active.className='cb '+(v==='ok'?'ok':v==='ng'?'ng':'na');
+}
+function updateProtBtn(k,col,v){
+  const cell=document.querySelector(`[data-prot="${k}"][data-col="${col}"]`);
+  if(!cell)return;
+  cell.querySelectorAll('.cb').forEach(b=>b.className='cb');
+  const active=cell.querySelector(`[data-val="${v}"]`);
+  if(active)active.className='cb '+(v==='ok'?'ok':'ng');
+}
+
+// ── Dashboard ──
+function pgDash(el){
+  el.innerHTML='';
+  const n=S.eq.length,m=S.rec.length;
+  const lastDate=S.rec.length?S.rec[0].date:'—';
+  // Metric cards
+  const mr=document.createElement('div');mr.style.cssText='display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px';
+  [{lbl:'Transformer',val:n,col:'var(--amber)'},{lbl:'PM Records',val:m,col:'var(--green)'},{lbl:'Last PM',val:lastDate,col:'var(--accent)',sm:true},{lbl:'Status',val:'Online',col:'var(--green)'}]
+  .forEach((c,i)=>{
+    const mc=document.createElement('div');mc.className='card';mc.style.cssText='cursor:'+(i<2?'pointer':'default');
+    mc.innerHTML='<div style="font-size:12px;color:var(--text3)">'+c.lbl+'</div><div style="font-size:'+(c.sm?'16':'26')+'px;font-weight:600;color:'+c.col+';margin-top:6px">'+c.val+'</div>';
+    if(i===0)mc.onclick=()=>go('equipment',E('nav-equipment'));
+    if(i===1)mc.onclick=()=>go('history',E('nav-history'));
+    mr.appendChild(mc);
+  });
+  el.appendChild(mr);
+  // Recent records
+  const rc=document.createElement('div');rc.className='card';
+  rc.innerHTML='<div class="st">📋 PM Records ล่าสุด</div>';
+  if(!S.rec.length){rc.innerHTML+='<div style="color:var(--text3);padding:20px;text-align:center">ยังไม่มีข้อมูล PM</div>';}
+  else{
+    const tbl=document.createElement('table');tbl.className='cht';
+    tbl.innerHTML='<thead><tr><th>Date</th><th>Tag</th><th>Description</th><th>Inspector</th><th>Result</th></tr></thead>';
+    const tb=document.createElement('tbody');
+    S.rec.slice(0,8).forEach(r=>{
+      const eq=S.eq.find(e=>e.tag===r.tag);
+      const tr2=document.createElement('tr');tr2.style.cursor='pointer';tr2.onclick=()=>showDetail(r.id);
+      tr2.innerHTML='<td class="mono" style="font-size:12px">'+r.date+'</td><td style="font-weight:600">'+r.tag+'</td><td style="font-size:12px;color:var(--text3)">'+(eq?.desc||'—')+'</td><td style="font-size:12px">'+(r.insp||'—')+'</td><td><span class="badge '+(r.result==='Accepted'?'b-ok':'b-ng')+'">'+r.result+'</span></td>';
+      tb.appendChild(tr2);
+    });
+    tbl.appendChild(tb);rc.appendChild(tbl);
+  }
+  el.appendChild(rc);
+}
+
+// ── PM Check Sheet ──
+function pgCheck(el){
+  CK={gen:{},prot:{},values:{},ir:{}};
+  el.innerHTML='';
+  // Header form
+  const hdr=document.createElement('div');hdr.className='card';
+  hdr.innerHTML='<div class="st">📋 Transformer PM Check Sheet</div>'+
+    '<div class="g3" style="gap:12px;margin-bottom:12px">'+
+    '<div class="fg"><label class="fl">Date</label><input class="fi" id="ck-date" type="date" value="'+new Date().toISOString().slice(0,10)+'"></div>'+
+    '<div class="fg"><label class="fl">WO Number</label><input class="fi" id="ck-wo" placeholder="WO-XXXXXXXX"></div>'+
+    '<div class="fg"><label class="fl">Equipment Tag</label><select class="fi" id="ck-tag"><option value="">-- เลือก Transformer --</option>'+S.eq.map(e=>'<option value="'+e.tag+'">'+e.tag+' — '+e.desc+'</option>').join('')+'</select></div>'+
+    '<div class="fg"><label class="fl">Inspector</label><input class="fi" id="ck-insp" placeholder="ชื่อผู้ตรวจ"></div>'+
+    '<div class="fg"><label class="fl">Reviewer</label><input class="fi" id="ck-rev" placeholder="ชื่อผู้ทบทวน"></div>'+
+    '</div>';
+  el.appendChild(hdr);
+
+  // Tabs
+  const tabs=document.createElement('div');tabs.className='itab';
+  ['📋 General Inspection','🛡 Protection Simulation','📊 Summary'].forEach((t,i)=>{
+    const tb=document.createElement('div');tb.className='it'+(i===0?' active':'');tb.textContent=t;
+    tb.onclick=()=>{document.querySelectorAll('.itab .it').forEach(x=>x.classList.remove('active'));tb.classList.add('active');[0,1,2].forEach(j=>E('ck-panel-'+j).style.display=j===i?'':'none');};
+    tabs.appendChild(tb);
+  });
+  el.appendChild(tabs);
+
+  // Panel 0: General Inspection
+  const p0=document.createElement('div');p0.id='ck-panel-0';
+  GEN_ITEMS.forEach(sec=>{
+    const sc=document.createElement('div');sc.className='card';
+    sc.innerHTML='<div class="sec-title">'+sec.sec+'</div>';
+    sec.items.forEach(item=>{
+      const row=document.createElement('div');row.className='chk-row';row.dataset.ck=item.k;
+      row.innerHTML='<div class="chk-label">'+item.label+(item.sub?'<div class="chk-sub">'+item.sub+'</div>':'')+'</div>';
+      const btns=document.createElement('div');btns.className='chk-btns';
+      if(item.hasValue){
+        const inp=document.createElement('input');inp.className='vi';inp.type='number';inp.step='0.1';inp.placeholder='—';inp.style.width='80px';
+        inp.oninput=()=>CK.values[item.k]=inp.value;
+        btns.appendChild(inp);
+        const unit=document.createElement('span');unit.style.cssText='font-size:11px;color:var(--text3);margin-right:8px';unit.textContent=item.unit;
+        btns.appendChild(unit);
+      }
+      ['ok','ng','n/a'].forEach(v=>{
+        const b=document.createElement('button');b.className='cb';b.textContent=v.toUpperCase();b.dataset.val=v;
+        b.onclick=()=>setCk(item.k,v);btns.appendChild(b);
+      });
+      row.appendChild(btns);sc.appendChild(row);
+    });
+    p0.appendChild(sc);
+  });
+  el.appendChild(p0);
+
+  // Panel 1: Protection Simulation
+  const p1=document.createElement('div');p1.id='ck-panel-1';p1.style.display='none';
+  const p1c=document.createElement('div');p1c.className='card';
+  p1c.innerHTML='<div class="st">🛡 Self Protection Simulation Test</div>'+
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:12px">Test voltage: 250 Vdc | Signal Output Operating</div>';
+  const tbl=document.createElement('table');tbl.className='cht';
+  tbl.innerHTML='<thead><tr><th>Function / Reference</th><th style="text-align:center">Local Panel LED</th><th style="text-align:center">Lock Out Relay</th><th style="text-align:center">DCS</th><th>IR Test (GΩ)</th></tr></thead>';
+  const tb=document.createElement('tbody');
+  PROT_ITEMS.forEach(item=>{
+    const tr2=document.createElement('tr');
+    tr2.innerHTML='<td style="font-size:12px"><b>'+item.label+'</b><div style="color:var(--text3);font-size:10px">'+item.ref+'</div></td>';
+    ['led','lor','dcs'].forEach(col=>{
+      const td=document.createElement('td');td.style.textAlign='center';td.dataset.prot=item.k;td.dataset.col=col;
+      ['ok','ng'].forEach(v=>{
+        const b=document.createElement('button');b.className='cb btn-sm';b.textContent=v==='ok'?'✓':'✗';b.dataset.val=v;
+        b.onclick=()=>setCkProt(item.k,col,v);td.appendChild(b);
+      });
+      tr2.appendChild(td);
+    });
+    const tdIR=document.createElement('td');
+    const irInp=document.createElement('input');irInp.className='vi';irInp.type='text';irInp.placeholder='—';irInp.style.width='90px';
+    irInp.oninput=()=>CK.ir[item.irKey]=irInp.value;
+    tdIR.appendChild(irInp);const irUnit=document.createElement('span');irUnit.style.cssText='font-size:10px;color:var(--text3);margin-left:4px';irUnit.textContent='GΩ';tdIR.appendChild(irUnit);
+    tr2.appendChild(tdIR);tb.appendChild(tr2);
+  });
+  tbl.appendChild(tb);p1c.appendChild(tbl);p1.appendChild(p1c);el.appendChild(p1);
+
+  // Panel 2: Summary
+  const p2=document.createElement('div');p2.id='ck-panel-2';p2.style.display='none';
+  const p2c=document.createElement('div');p2c.className='card';
+  p2c.innerHTML='<div class="st">📊 Summary & Result</div>'+
+    '<div class="g2" style="gap:16px;margin-bottom:16px">'+
+    '<div><div class="fl" style="margin-bottom:8px">Overall Result</div>'+
+    '<div style="display:flex;gap:8px">'+
+    '<button class="cb" id="res-acc" data-val="Accepted" onclick="setResult(\'Accepted\')">✓ Accepted</button>'+
+    '<button class="cb" id="res-rej" data-val="Unaccepted" onclick="setResult(\'Unaccepted\')">✗ Unaccepted</button>'+
+    '</div></div>'+
+    '<div class="fg"><label class="fl">Remarks</label><textarea class="fi" id="ck-remark" rows="4" placeholder="หมายเหตุเพิ่มเติม..."></textarea></div>'+
+    '</div>';
+  if(canEdit()){
+    const sv=document.createElement('button');sv.className='btn btn-s';sv.style.cssText='margin-top:8px;font-size:14px;padding:10px 24px';
+    sv.textContent='✓ บันทึก PM Record';sv.onclick=saveRecord;p2c.appendChild(sv);
+  }
+  p2.appendChild(p2c);el.appendChild(p2);
+}
+
+let CK_RESULT='Accepted';
+function setResult(v){
+  CK_RESULT=v;
+  E('res-acc').className='cb'+(v==='Accepted'?' ok':'');
+  E('res-rej').className='cb'+(v==='Unaccepted'?' ng':'');
+}
+
+async function saveRecord(){
+  if(!canEdit()){toast('ไม่มีสิทธิ์บันทึก','err');return;}
+  const tag=E('ck-tag').value;const date=E('ck-date').value;
+  if(!tag||!date){toast('กรุณาเลือก Tag และวันที่','err');return;}
+  const rec={
+    tag,date,wo:E('ck-wo').value,insp:E('ck-insp').value,rev:E('ck-rev').value,
+    result:CK_RESULT,remark:E('ck-remark')?.value||'',
+    gen:{...CK.gen},genValues:{...CK.values},
+    prot:{...CK.prot},ir:{...CK.ir},
+    createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    createdBy:S.usr?.email||''
+  };
+  try{
+    await db.collection('tr_records').add(rec);
+    S.rec.unshift({id:'new',...rec});
+    toast('บันทึก PM '+tag+' สำเร็จ ✓');
+    go('history',E('nav-history'));
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
+// ── PM History ──
+function pgHist(el){
+  el.innerHTML='';
+  const card=document.createElement('div');card.className='card';
+  card.innerHTML='<div class="sh"><div class="st">📅 PM History</div></div>';
+  const tbl=document.createElement('table');tbl.className='cht';
+  tbl.innerHTML='<thead><tr><th>Date</th><th>Tag</th><th>Description</th><th>WO</th><th>Inspector</th><th>Result</th><th>Actions</th></tr></thead>';
+  const tb=document.createElement('tbody');
+  if(!S.rec.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text3)">ยังไม่มีข้อมูล PM</td></tr>';}
+  else{
+    S.rec.forEach(r=>{
+      const eq=S.eq.find(e=>e.tag===r.tag);
+      const tr2=document.createElement('tr');
+      tr2.innerHTML='<td class="mono" style="font-size:12px">'+r.date+'</td>'+
+        '<td style="font-weight:600">'+r.tag+'</td>'+
+        '<td style="font-size:12px;color:var(--text3)">'+(eq?.desc||'—')+'</td>'+
+        '<td style="font-size:12px">'+(r.wo||'—')+'</td>'+
+        '<td style="font-size:12px">'+(r.insp||'—')+'</td>'+
+        '<td><span class="badge '+(r.result==='Accepted'?'b-ok':'b-ng')+'">'+r.result+'</span></td>'+
+        '<td><button class="btn btn-sm btn-p" onclick="showDetail(\''+r.id+'\')">View</button></td>';
+      tb.appendChild(tr2);
+    });
+  }
+  tbl.appendChild(tb);card.appendChild(tbl);el.appendChild(card);
+}
+
+// ── Show Detail Modal ──
+function showDetail(id){
+  const r=S.rec.find(x=>x.id===id);if(!r)return;
+  const eq=S.eq.find(e=>e.tag===r.tag);
+  let h='';
+  h+='<div class="sec-title">📋 PM Information</div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">';
+  [['Tag',r.tag],['Date',r.date],['WO',r.wo||'—'],['Inspector',r.insp||'—'],['Reviewer',r.rev||'—'],['Result',r.result]].forEach(([l,v])=>{
+    h+=`<div style="padding:6px 0;border-bottom:1px solid var(--border)"><div style="font-size:11px;color:var(--text3)">${l}</div><div style="font-weight:500">${v}</div></div>`;
+  });
+  h+='</div>';
+  // General inspection summary
+  if(r.gen&&Object.keys(r.gen).length){
+    h+='<div class="sec-title">📋 General Inspection</div>';
+    GEN_ITEMS.forEach(sec=>{
+      sec.items.forEach(item=>{
+        const v=r.gen[item.k];if(!v)return;
+        const val=r.genValues?.[item.k];
+        h+=`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--text3)">${item.label}</span><span><span class="badge ${v==='ok'?'b-ok':v==='ng'?'b-ng':'b-na'}">${v.toUpperCase()}</span>${val?' <span class="mono" style="color:var(--text2)">'+val+(item.unit?' '+item.unit:'')+'</span>':''}</span></div>`;
+      });
+    });
+  }
+  if(r.remark){h+='<div class="sec-title" style="margin-top:12px">📝 Remark</div><div style="font-size:13px;padding:8px 0">'+r.remark+'</div>';}
+  // Create modal
+  let mo=E('detail-mo');
+  if(!mo){mo=document.createElement('div');mo.id='detail-mo';mo.className='mo';mo.innerHTML='<div class="modal" style="width:700px"><div class="mh"><div style="font-weight:600">PM Detail — <span id="dm-tag"></span></div><div style="display:flex;gap:8px"><button class="btn btn-sm" onclick="exportPDF()">🖨 Export PDF</button><button class="mc-btn" onclick="closeMo()">✕</button></div></div><div class="mb" id="dm-body"></div></div>';document.body.appendChild(mo);}
+  E('dm-tag').textContent=r.tag+' ('+r.date+')';
+  E('dm-body').innerHTML=h;
+  mo.classList.add('show');
+  mo.onclick=(e)=>{if(e.target===mo)closeMo();};
+}
+function closeMo(){const mo=E('detail-mo');if(mo)mo.classList.remove('show');}
+
+function exportPDF(){
+  const mb=E('dm-body');if(!mb)return;
+  const tag=E('dm-tag')?.textContent||'PM Record';
+  const clone=mb.cloneNode(true);
+  clone.querySelectorAll('button,.btn').forEach(b=>b.remove());
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${tag}</title><style>
+    body{font-family:Arial,sans-serif;font-size:12px;color:#000;padding:15mm}
+    .sec-title{font-size:11px;font-weight:700;color:#1a5fb4;text-transform:uppercase;margin:12px 0 6px;border-bottom:2px solid #1a5fb4;padding-bottom:3px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;border:1px solid #ccc}
+    .b-ok{background:#e8f5e9;color:#2e7d32}.b-ng{background:#ffebee;color:#c62828}.b-na{background:#f5f5f5;color:#777}
+    .mono{font-family:monospace}
+    @media print{@page{size:A4;margin:10mm}}
+  </style></head><body>
+  <h2>PM Transformer Report — ${tag}</h2>
+  <p style="color:#666;font-size:11px;margin-bottom:16px">PM Inspection System — ${S.set.plant||'TCC Plant GEN'} | Export: ${new Date().toLocaleDateString('th-TH')}</p>
+  ${clone.innerHTML}
+  </body></html>`;
+  const w=window.open('','_blank','width=800,height=900');
+  if(!w){toast('กรุณาอนุญาต popup','warn');return;}
+  w.document.write(html);w.document.close();
+  w.onload=()=>setTimeout(()=>w.print(),400);
+}
+
+// ── Equipment (Transformer List) ──
+function pgEq(el){
+  el.innerHTML='';
+  const card=document.createElement('div');card.className='card';
+  const sh=document.createElement('div');sh.className='sh';
+  sh.innerHTML='<div class="st">⚡ Transformer List</div>';
+  if(canEdit()){const ab=document.createElement('button');ab.className='btn btn-p';ab.textContent='+ Add';ab.onclick=addEq;sh.appendChild(ab);}
+  card.appendChild(sh);
+  if(!S.eq.length){card.innerHTML+='<div style="text-align:center;padding:24px;color:var(--text3)">ยังไม่มี Transformer — กด + Add</div>';}
+  else{
+    const tbl=document.createElement('table');tbl.className='cht';
+    tbl.innerHTML='<thead><tr><th>Tag</th><th>Description</th><th>Model</th><th>Rated</th><th>Unit</th><th>Actions</th></tr></thead>';
+    const tb=document.createElement('tbody');
+    S.eq.forEach(eq=>{
+      const tr2=document.createElement('tr');
+      tr2.innerHTML='<td style="font-weight:600">'+eq.tag+'</td><td style="font-size:12px">'+eq.desc+'</td><td style="font-size:12px;color:var(--text3)">'+eq.model+'</td><td style="font-size:12px;color:var(--text3)">'+eq.rated+'</td><td style="font-size:12px">'+eq.unit+'</td><td>';
+      if(canEdit()){
+        const eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='Edit';eb.onclick=()=>editEq(eq.tag);tr2.querySelector('td:last-child').appendChild(eb);
+        if(isAdmin()){const db2=document.createElement('button');db2.className='btn btn-sm btn-d';db2.style.marginLeft='6px';db2.textContent='Del';db2.onclick=()=>delEq(eq.tag);tr2.querySelector('td:last-child').appendChild(db2);}
+      }
+      tb.appendChild(tr2);
+    });
+    tbl.appendChild(tb);card.appendChild(tbl);
+  }
+  el.appendChild(card);
+}
+
+function addEq(){openEqModal();}
+function editEq(tag){const eq=S.eq.find(e=>e.tag===tag);if(eq)openEqModal(eq);}
+
+function openEqModal(eq){
+  let mo=E('eq-mo');
+  if(!mo){
+    mo=document.createElement('div');mo.id='eq-mo';mo.className='mo';
+    mo.innerHTML='<div class="modal"><div class="mh"><div style="font-weight:600" id="eq-mo-t">Add Transformer</div><button class="mc-btn" onclick="E(\'eq-mo\').classList.remove(\'show\')">✕</button></div>'+
+    '<div class="mb"><div class="g2" style="gap:12px">'+
+    '<div class="fg"><label class="fl">Tag *</label><input class="fi" id="eq-tag" placeholder="40BFT20"></div>'+
+    '<div class="fg"><label class="fl">Unit</label><input class="fi" id="eq-unit" placeholder="GTG42"></div>'+
+    '<div class="fg"><label class="fl">Description</label><input class="fi" id="eq-desc" placeholder="Aux.Service Transformer 42"></div>'+
+    '<div class="fg"><label class="fl">Model</label><input class="fi" id="eq-model" placeholder="TIRATHAI LH16"></div>'+
+    '<div class="fg"><label class="fl">Rated (kVA)</label><input class="fi" id="eq-rated" placeholder="1250 kVA, Dyn5"></div>'+
+    '<div class="fg"><label class="fl">Voltage</label><input class="fi" id="eq-volt" placeholder="6.6kV / 415V [ONAN]"></div>'+
+    '<div class="fg"><label class="fl">Location</label><input class="fi" id="eq-loc" placeholder="Building / Bay"></div>'+
+    '<div class="fg"><label class="fl">Oil Temp Alarm / Trip (°C)</label><input class="fi" id="eq-ot" placeholder="83 / 88"></div>'+
+    '<div class="fg"><label class="fl">Winding Temp Alarm / Trip (°C)</label><input class="fi" id="eq-wt" placeholder="100 / 110"></div>'+
+    '</div>'+
+    '<button class="btn btn-s" style="margin-top:16px" onclick="saveEq()">✓ Save</button>'+
+    '</div></div>';
+    document.body.appendChild(mo);
+  }
+  E('eq-mo-t').textContent=eq?'Edit — '+eq.tag:'Add Transformer';
+  ['tag','unit','desc','model','rated','volt','loc','ot','wt'].forEach(f=>{if(E('eq-'+f))E('eq-'+f).value=eq?eq[f]||'':'';});
+  if(E('eq-tag'))E('eq-tag').disabled=!!eq;
+  mo.classList.add('show');
+}
+
+async function saveEq(){
+  if(!canEdit()){toast('ไม่มีสิทธิ์','err');return;}
+  const tag=E('eq-tag').value.trim();if(!tag){toast('Tag required','err');return;}
+  const data={tag,unit:E('eq-unit').value,desc:E('eq-desc').value,model:E('eq-model').value,rated:E('eq-rated').value,volt:E('eq-volt').value,loc:E('eq-loc').value,ot:E('eq-ot').value,wt:E('eq-wt').value};
+  try{
+    await db.collection('tr_equipment').doc(tag).set(data,{merge:true});
+    const idx=S.eq.findIndex(e=>e.tag===tag);if(idx>=0)S.eq[idx]=data;else S.eq.push(data);
+    E('eq-mo').classList.remove('show');
+    toast('บันทึก '+tag+' แล้ว ✓');
+    pgEq(E('content'));
+  }catch(e){toast('Error: '+e.message,'err');}
+}
+
+async function delEq(tag){
+  if(!isAdmin()){toast('เฉพาะ Admin','err');return;}
+  if(!confirm('ลบ '+tag+'?'))return;
+  try{await db.collection('tr_equipment').doc(tag).delete();S.eq=S.eq.filter(e=>e.tag!==tag);toast('ลบ '+tag+' แล้ว','warn');pgEq(E('content'));}
+  catch(e){toast('Error: '+e.message,'err');}
+}
+
+// ── Settings ──
+function pgSet(el){
+  el.innerHTML='';
+  const card=document.createElement('div');card.className='card';
+  card.innerHTML='<div class="st">⚙ Settings</div>'+
+    '<div class="g2" style="gap:12px;margin-bottom:16px">'+
+    '<div class="fg"><label class="fl">Plant</label><input class="fi" id="s-plant" value="'+(S.set.plant||'')+'"></div>'+
+    '<div class="fg"><label class="fl">Company</label><input class="fi" id="s-co" value="'+(S.set.co||'')+'"></div>'+
+    '</div>';
+  const sv=document.createElement('button');sv.className='btn btn-p';sv.textContent='Save Settings';
+  sv.onclick=async()=>{
+    const d={plant:E('s-plant').value,co:E('s-co').value};
+    await db.collection('settings').doc('global').set(d,{merge:true});
+    S.set={...S.set,...d};toast('Saved ✓');
+  };
+  card.appendChild(sv);el.appendChild(card);
+}
+</script>
+</body>
+</html>
