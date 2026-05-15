@@ -813,7 +813,7 @@ function pgEq(el){
     const tb=document.createElement('tbody');
     S.eq.forEach(eq=>{
       const tr2=document.createElement('tr');
-      tr2.innerHTML='<td style="font-weight:600">'+eq.tag+'</td><td style="font-size:12px">'+eq.desc+'</td><td style="font-size:12px;color:var(--text3)">'+eq.model+'</td><td style="font-size:12px;color:var(--text3)">'+eq.rated+'</td><td style="font-size:12px">'+eq.unit+'</td><td>';
+      tr2.innerHTML='<td style="font-weight:600">'+eq.tag+'</td><td style="font-size:12px">'+eq.desc+'</td><td style="font-size:12px;color:var(--text3)">'+(eq.type||'')+(eq.model?' / '+eq.model:'')+'</td><td style="font-size:12px;color:var(--text3)">'+eq.rated+'</td><td style="font-size:12px;color:var(--text3)">'+(eq.sn||'—')+'</td><td style="font-size:12px;color:var(--text3)">'+(eq.weight?eq.weight+' kg':'—')+'</td><td style="font-size:12px;color:var(--text3)">'+(eq.oil?eq.oil+' kg':'—')+'</td><td style="font-size:12px">'+eq.unit+'</td><td>';
       if(canEdit()){
         const eb=document.createElement('button');eb.className='btn btn-sm';eb.textContent='Edit';eb.onclick=()=>editEq(eq.tag);tr2.querySelector('td:last-child').appendChild(eb);
         if(isAdmin()){const db2=document.createElement('button');db2.className='btn btn-sm btn-d';db2.style.marginLeft='6px';db2.textContent='Del';db2.onclick=()=>delEq(eq.tag);tr2.querySelector('td:last-child').appendChild(db2);}
@@ -832,24 +832,41 @@ function openEqModal(eq){
   let mo=E('eq-mo');
   if(!mo){
     mo=document.createElement('div');mo.id='eq-mo';mo.className='mo';
-    mo.innerHTML='<div class="modal"><div class="mh"><div style="font-weight:600" id="eq-mo-t">Add Transformer</div><button class="mc-btn" onclick="E(\'eq-mo\').classList.remove(\'show\')">✕</button></div>'+
-    '<div class="mb"><div class="g2" style="gap:12px">'+
-    '<div class="fg"><label class="fl">Tag *</label><input class="fi" id="eq-tag" placeholder="40BFT20"></div>'+
-    '<div class="fg"><label class="fl">Unit</label><input class="fi" id="eq-unit" placeholder="GTG42"></div>'+
-    '<div class="fg"><label class="fl">Description</label><input class="fi" id="eq-desc" placeholder="Aux.Service Transformer 42"></div>'+
-    '<div class="fg"><label class="fl">Model</label><input class="fi" id="eq-model" placeholder="TIRATHAI LH16"></div>'+
-    '<div class="fg"><label class="fl">Rated (kVA)</label><input class="fi" id="eq-rated" placeholder="1250 kVA, Dyn5"></div>'+
-    '<div class="fg"><label class="fl">Voltage</label><input class="fi" id="eq-volt" placeholder="6.6kV / 415V [ONAN]"></div>'+
-    '<div class="fg"><label class="fl">Location</label><input class="fi" id="eq-loc" placeholder="Building / Bay"></div>'+
-    '<div class="fg"><label class="fl">Oil Temp Alarm / Trip (°C)</label><input class="fi" id="eq-ot" placeholder="83 / 88"></div>'+
-    '<div class="fg"><label class="fl">Winding Temp Alarm / Trip (°C)</label><input class="fi" id="eq-wt" placeholder="100 / 110"></div>'+
-    '</div>'+
-    '<button class="btn btn-s" style="margin-top:16px" onclick="saveEq()">✓ Save</button>'+
-    '</div></div>';
+     mo.innerHTML='<div class="modal" style="width:720px;max-width:95vw"><div class="mh"><div style="font-weight:600" id="eq-mo-t">Add Transformer</div><button class="mc-btn" onclick="E(\'eq-mo\').classList.remove(\'show\')">✕</button></div>'+
+     '<div class="mb">'+
+     '<div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">General Information</div>'+
+     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">'+
+     '<div class="fg"><label class="fl">Tag No. *</label><input class="fi" id="eq-tag" placeholder="40BFT20"></div>'+
+     '<div class="fg"><label class="fl">Unit</label><input class="fi" id="eq-unit" placeholder="GTG42"></div>'+
+     '<div class="fg"><label class="fl">Location</label><input class="fi" id="eq-loc" placeholder="Building / Bay"></div>'+
+     '</div>'+
+     '<div class="fg" style="margin-bottom:14px"><label class="fl">Description</label><input class="fi" id="eq-desc" placeholder="Aux.Service Transformer 42"></div>'+
+     '<div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Nameplate Data</div>'+
+     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">'+
+     '<div class="fg"><label class="fl">Type</label><input class="fi" id="eq-type" placeholder="ONAN / ONAF"></div>'+
+     '<div class="fg"><label class="fl">Model</label><input class="fi" id="eq-model" placeholder="TIRATHAI LH16"></div>'+
+     '<div class="fg"><label class="fl">Serial Number</label><input class="fi" id="eq-sn" placeholder="TX-2021-XXXX"></div>'+
+     '<div class="fg"><label class="fl">Rated (kVA)</label><input class="fi" id="eq-rated" placeholder="1250 kVA, Dyn5"></div>'+
+     '<div class="fg"><label class="fl">Voltage (HV/LV)</label><input class="fi" id="eq-volt" placeholder="6.6kV / 415V"></div>'+
+     '<div class="fg"><label class="fl">Vector Group</label><input class="fi" id="eq-vector" placeholder="Dyn5"></div>'+
+     '<div class="fg"><label class="fl">Rated Current HV (A)</label><input class="fi" id="eq-curhv" placeholder="109.3"></div>'+
+     '<div class="fg"><label class="fl">Rated Current LV (A)</label><input class="fi" id="eq-curlv" placeholder="1749.0"></div>'+
+     '<div class="fg"><label class="fl">Frequency (Hz)</label><input class="fi" id="eq-freq" placeholder="50"></div>'+
+     '<div class="fg"><label class="fl">Impedance (%)</label><input class="fi" id="eq-imp" placeholder="5.75"></div>'+
+     '<div class="fg"><label class="fl">Total Weight (kg)</label><input class="fi" id="eq-weight" placeholder="3800"></div>'+
+     '<div class="fg"><label class="fl">Total Oil (kg)</label><input class="fi" id="eq-oil" placeholder="450"></div>'+
+     '</div>'+
+     '<div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border)">Alarm & Trip Settings</div>'+
+     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'+
+     '<div class="fg"><label class="fl">Oil Temp Alarm / Trip (°C)</label><input class="fi" id="eq-ot" placeholder="83 / 88"></div>'+
+     '<div class="fg"><label class="fl">Winding Temp Alarm / Trip (°C)</label><input class="fi" id="eq-wt" placeholder="100 / 110"></div>'+
+     '</div>'+
+     '<button class="btn btn-s" style="margin-top:4px" onclick="saveEq()">✓ Save</button>'+
+     '</div></div>';
     document.body.appendChild(mo);
   }
   E('eq-mo-t').textContent=eq?'Edit — '+eq.tag:'Add Transformer';
-  ['tag','unit','desc','model','rated','volt','loc','ot','wt'].forEach(f=>{if(E('eq-'+f))E('eq-'+f).value=eq?eq[f]||'':'';});
+  ['tag','unit','desc','model','sn','rated','volt','vector','curhv','curlv','freq','imp','weight','oil','loc','ot','wt','type'].forEach(f=>{if(E('eq-'+f))E('eq-'+f).value=eq?eq[f]||'':''});
   if(E('eq-tag'))E('eq-tag').disabled=!!eq;
   mo.classList.add('show');
 }
@@ -857,7 +874,7 @@ function openEqModal(eq){
 async function saveEq(){
   if(!canEdit()){toast('ไม่มีสิทธิ์','err');return;}
   const tag=E('eq-tag').value.trim();if(!tag){toast('Tag required','err');return;}
-  const data={tag,unit:E('eq-unit').value,desc:E('eq-desc').value,model:E('eq-model').value,rated:E('eq-rated').value,volt:E('eq-volt').value,loc:E('eq-loc').value,ot:E('eq-ot').value,wt:E('eq-wt').value};
+  const data={tag,unit:E('eq-unit').value,desc:E('eq-desc').value,type:E('eq-type')?.value||'',model:E('eq-model').value,sn:E('eq-sn')?.value||'',rated:E('eq-rated').value,volt:E('eq-volt').value,vector:E('eq-vector')?.value||'',curhv:E('eq-curhv')?.value||'',curlv:E('eq-curlv')?.value||'',freq:E('eq-freq')?.value||'',imp:E('eq-imp')?.value||'',weight:E('eq-weight')?.value||'',oil:E('eq-oil')?.value||'',loc:E('eq-loc').value,ot:E('eq-ot').value,wt:E('eq-wt').value};
   try{
     await db.collection('tr_equipment').doc(tag).set(data,{merge:true});
     const idx=S.eq.findIndex(e=>e.tag===tag);if(idx>=0)S.eq[idx]=data;else S.eq.push(data);
